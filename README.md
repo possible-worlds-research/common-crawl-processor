@@ -1,4 +1,4 @@
-## Common Crawl processing tools
+# Common Crawl processing tools
 
 The code in this directory is part of an effort to make Web indexing available to all. We provide tools that allow a user to process the Common Crawl dumps ([https://commoncrawl.org](https://commoncrawl.org), containing petabytes of Web data in 40 languages).
 
@@ -16,9 +16,15 @@ Note that processing Common Crawl files is a very intensive job. Please refer to
 Each processed file now contains a number of raw text documents, which we need to further process to get a rough idea of the content of the page. In this step, we will take each raw text file, cluster the documents it contains using a technique called Locality Sensitive Hashing (LSH), and return some keywords representative of its content.
 
 
-
-
-
 ### Create a database for each hash
 
 TODO
+
+
+## Using the code
+
+We recommend using a virtual environment. You can set it up from outside your clone repository, by doing:
+
+     virtualenv common-crawl-processor
+
+
