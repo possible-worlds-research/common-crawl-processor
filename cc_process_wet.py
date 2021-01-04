@@ -77,8 +77,6 @@ def write_from_wet(wet_url):
             n_documents += 1
         if n_documents % 100 == 0:
             print(i,"documents processed",n_documents,"documents added...")
-        if n_documents > 200:
-            break
     f.close()
     return file_path
 
