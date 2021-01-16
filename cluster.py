@@ -1,7 +1,7 @@
 """Common Crawl hashing - creating clusters from document hashes
 
 Usage:
-  clustr.py --file=<filename>
+  cluster.py --file=<filename>
   cluster.py (-h | --help)
   cluster.py --version
 
