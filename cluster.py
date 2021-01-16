@@ -15,6 +15,7 @@ Options:
 
 import pickle
 import numpy as np
+from docopt import docopt
 from collections import Counter
 from sklearn.cluster import KMeans
 
