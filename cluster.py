@@ -1,14 +1,15 @@
 """Common Crawl hashing - creating clusters from document hashes
 
 Usage:
-  cluster.py --file=<filename>
+  cluster.py --dir=<dirname> --nclusters=<n>
   cluster.py (-h | --help)
   cluster.py --version
 
 Options:
   -h --help                       Show this screen.
   --version                       Show version.
-  --file=<filename>               Name of file with .wet file paths
+  --dir=<dirname>                 Name of directory with .hs file paths
+  --nclusters=<n>                 Number of clusters for kmeans
 
 """
 
@@ -17,9 +18,9 @@ import pickle
 import numpy as np
 from docopt import docopt
 from collections import Counter
-from sklearn.cluster import KMeans
-
-num_clusters = 200
+from sklearn.cluster import MiniBatchKMeans
+from os import listdir
+from os.path import join
 
 def read_vocab():
     c = 0
@@ -49,37 +50,49 @@ def read_projections():
     return projections
 
 if __name__ == '__main__':
-    args = docopt(__doc__, version='Common Crawl Hashing 0.1')
+    args = docopt(__doc__, version='Common Crawl Clustering 0.1')
 
-    hash_file = args['--file']
-    url_file = hash_file.replace("hs","urls")
-    keyword_file = hash_file.replace("hs","kwords")
-
+    hsdir = args['--dir']
+    num_clusters = int(args["--nclusters"])
     vocab, reverse_vocab = read_vocab()
     projections = read_projections()
-
-    M = pickle.load(open(hash_file,'rb'))
-    urls = list(pickle.load(open(url_file,'rb')))
-    keywords = pickle.load(open(keyword_file,'rb'))
-
-    kmeans = KMeans(n_clusters=num_clusters, random_state=143).fit(M)
 
     url_proj_words = {}
     labels = {}
     clusters = {}
-    for i in range(len(urls)):
-        label = kmeans.labels_[i]
-        labels[urls[i]] = label
+    keywords = {}
+    kmeans = MiniBatchKMeans(n_clusters=num_clusters, random_state=143, batch_size=1024, verbose=True)
+
+    hsfiles = [join(hsdir,f) for f in listdir(hsdir) if join(hsdir, f)[-3:] == ".hs"]
+
+    for hash_file in hsfiles:
+        M = pickle.load(open(hash_file,'rb'))
+        kmeans = kmeans.partial_fit(M)
+        print(hash_file)
+
+    for hash_file in hsfiles:
+        url_file = hash_file.replace("hs","urls")
+        M = pickle.load(open(hash_file,'rb'))
+        urls = list(pickle.load(open(url_file,'rb')))
+        keyword_file = hash_file.replace("hs","kwords")
+        keywords.update(pickle.load(open(keyword_file,'rb')))
+
+        predictions = kmeans.predict(M)
+        print("Predicting",hash_file)
+
+        for i in range(len(urls)):
+            label = predictions[i]
+            labels[urls[i]] = label
     
-        if label in clusters:
-            clusters[label].append(urls[i])
-        else:
-            clusters[label] = [urls[i]]
+            if label in clusters:
+                clusters[label].append(urls[i])
+            else:
+                clusters[label] = [urls[i]]
 
 
-    for i in range(1,num_clusters):
-        ks = []
+    for i in range(num_clusters):
         print('***')
+        ks = []
         for url in clusters[i]:
             ks.extend(keywords[url])
         print(i,len(clusters[i]),Counter(ks).most_common(10))
