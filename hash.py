@@ -19,6 +19,8 @@ import gzip
 import random
 import pickle
 import numpy as np
+import time
+from timer import Timer
 from docopt import docopt
 import sentencepiece as spm
 from itertools import combinations
@@ -55,13 +57,19 @@ def read_vocab():
 def read_projections():
     c = 0
     projections = {}
+    pn_to_kc = {}
     with open("spmcc.projs") as f:
         for l in f:
             l=l.rstrip('\n')
             p = np.array([int(n) for n in l.split()])
             projections[c]=p
+            for pn in p:
+                if pn in pn_to_kc:
+                    pn_to_kc[pn].append(c)
+                else:
+                    pn_to_kc[pn] = [c]
             c+=1
-    return projections
+    return projections, pn_to_kc
 
 
 def create_projections(in_file, PN_size, KC_size, proj_size):
@@ -118,7 +126,16 @@ def show_projections(hashed_kenyon,reverse_vocab):
 
 def projection(projection_layer):
     kenyon_layer = np.zeros(KC_size)
-    for cell in range(KC_size):
+    nzs = np.where(projection_layer > 0)
+    kcs = []
+    #print(len(nzs[0]))
+    for pn in nzs[0]:
+        if pn in pn_to_kc:
+            kcs.extend(pn_to_kc[pn])
+        #else:
+        #    print("WARNING: ",pn,"not in use")
+    kcs = list(set(kcs))
+    for cell in kcs:
         activated_pns = projection_functions[cell]
         for pn in activated_pns:
             kenyon_layer[cell]+=projection_layer[pn]
@@ -150,6 +167,7 @@ def return_keywords(vec):
 if __name__ == '__main__':
     args = docopt(__doc__, version='Common Crawl Hashing 0.1')
 
+    t = Timer()
     vocab, reverse_vocab, logprobs = read_vocab()
     vectorizer = CountVectorizer(vocabulary=vocab, lowercase=False, token_pattern='[^ ]+')
 
@@ -183,19 +201,30 @@ if __name__ == '__main__':
     if args["--mkprojections"]:
         projection_functions = create_projections(in_file,PN_size, KC_size, proj_size)
     else:
-        projection_functions = read_projections()
+        projection_functions, pn_to_kc = read_projections()
 
     with gzip.open(in_file,'r') as f:
         for l in f:        
             l = l.decode("utf-8").rstrip('\n')
             if l[:4] == "<doc":
+                #print("Doc",n_doc)
                 m = re.search(".*url=([^ ]*) ",l)
                 urls.append(m.group(1))
             elif l[:5] == "</doc":
+                #print("Wordpiecing...")
+                #t.start()
+                ll = sp.encode_as_pieces(doc)
+                #t.stop()
+                #print("Vectorizing...")
+                #t.start()
                 X = vectorizer.fit_transform([doc])
+                #t.stop()
                 X = X.toarray()[0]
                 vec = logprobs * X
+                #print("Hashing...")
+                #t.start()
                 hs = hash_input(vec,reverse_vocab)
+                #t.stop()
                 hs = coo_matrix(hs)
                 #print(urls[-1],' '.join([str(i) for i in hs.col]))
                 keywords[urls[-1]] = [reverse_vocab[w] for w in return_keywords(vec)]
@@ -205,9 +234,9 @@ if __name__ == '__main__':
                     M_data.append(1)
                 doc = ""
                 n_doc+=1
+                time.sleep(0.002)    #Sleep a little to consume less CPU
             else:
-                ll = sp.encode_as_pieces(l)
-                doc+=' '.join(wp for wp in ll)+' '
+                doc+=l+' '
     M = coo_matrix((M_data, (M_row, M_col)), shape=(n_doc, KC_size))
 
 with open(hs_file,"wb") as hsf:
