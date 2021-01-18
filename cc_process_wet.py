@@ -18,6 +18,7 @@ import sys
 import gzip
 import shutil
 import requests
+from timer import Timer
 from docopt import docopt
 from warcio import ArchiveIterator
 from langdetect import detect
@@ -49,13 +50,14 @@ def read_doc_wet(record):
         doc = doc.split('\n')
         title = doc[0]
         text = '\n'.join(doc[1:])
-        lang = detect_language(title+' '+text)
+        lang = detect_language(title+' '+text[:1000])
     return url, title, text, lang
 
 
 
 def write_from_wet(wet_url):
     print(wet_url)
+    t = Timer()
     r = requests.get(wet_url, stream=True)
     records = ArchiveIterator(r.raw)
 
@@ -83,14 +85,14 @@ def write_from_wet(wet_url):
 if __name__ == '__main__':
     args = docopt(__doc__, version='Common Crawl Processor 0.1')
 
-f = open(args["--file"],'r')
+    f = open(args["--file"],'r')
 
-for l in f:
-    wet_url = l.rstrip('\n')
-    file_path = write_from_wet(wet_url)
+    for l in f:
+        wet_url = l.rstrip('\n')
+        file_path = write_from_wet(wet_url)
 
-    with open(file_path, 'rb') as f_in:
-        with gzip.open(file_path+'.gz', 'wb') as f_out:
-            shutil.copyfileobj(f_in, f_out)   
+        with open(file_path, 'rb') as f_in:
+            with gzip.open(file_path+'.gz', 'wb') as f_out:
+                shutil.copyfileobj(f_in, f_out)   
 
-    os.unlink(file_path) 
+        os.unlink(file_path) 
