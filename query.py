@@ -80,7 +80,8 @@ def wta(kenyon_layer):
     top = int(percent_hash * KC_size / 100)
     activated_kcs = np.argpartition(kenyon_layer, -top)[-top:]
     for cell in activated_kcs:
-        kenyon_activations[cell] = 1
+        if kenyon_layer[cell] != 0:
+            kenyon_activations[cell] = 1
     return kenyon_activations
 
 def hash_input(vec,reverse_vocab):

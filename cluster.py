@@ -17,6 +17,7 @@ Options:
 import pickle
 import numpy as np
 from docopt import docopt
+import tldextract
 from collections import Counter
 from sklearn.cluster import MiniBatchKMeans
 from os import listdir
@@ -56,6 +57,7 @@ if __name__ == '__main__':
     num_clusters = int(args["--nclusters"])
     vocab, reverse_vocab = read_vocab()
     projections = read_projections()
+    log_file = "./kmeans.log"
 
     url_proj_words = {}
     labels = {}
@@ -89,11 +91,20 @@ if __name__ == '__main__':
             else:
                 clusters[label] = [urls[i]]
 
-
+    log = open(log_file,'w')
     for i in range(num_clusters):
-        print('***')
         ks = []
+        domains = []
         for url in clusters[i]:
             ks.extend(keywords[url])
-        print(i,len(clusters[i]),Counter(ks).most_common(10))
-        print('***')
+            ext = tldextract.extract(url)
+            domains.append('.'.join(ext[1:]))
+        counter = dict(Counter(ks).most_common(10))
+        counter_str = ' '.join([str(k)+'('+str(v)+')' for k,v in counter.items()])
+
+        counter_urls = dict(Counter(domains).most_common(10))
+        counter_urls_str = ' '.join([str(k)+'('+str(v)+')' for k,v in counter_urls.items()])
+        log.write(str(i)+' '+str(len(clusters[i]))+' '+counter_str+' '+counter_urls_str+'\n')
+    log.close()
+
+    pickle.dump(kmeans, open("kmeans.pkl", "wb"))
