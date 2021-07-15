@@ -62,6 +62,11 @@ def write_from_wet(wet_url):
     records = ArchiveIterator(r.raw)
 
     n_documents=0
+    
+    if os.path.isdir("processed_wet"):
+        pass
+    else:
+        os.makedirs("processed_wet")
 
     file_path = wet_url.replace("https://","")
     file_path = file_path.replace('/','.')
